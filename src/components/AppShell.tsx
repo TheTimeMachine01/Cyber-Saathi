@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -142,6 +144,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             
             <div className="hidden md:block h-8 w-px bg-slate-200 dark:bg-slate-700"></div>
             
+            <ThemeToggle />
+
             <div className="relative">
               <div 
                 className="flex items-center gap-3 pl-2 cursor-pointer group"
@@ -155,8 +159,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   <p className="text-xs font-bold text-slate-900 dark:text-white">Agent Marcus Thorne</p>
                   <p className="text-[10px] text-slate-500">Badge #44921</p>
                 </div>
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-primary/20 flex items-center justify-center border border-primary/40 overflow-hidden">
-                  <img alt="User Profile" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAxnD561ku33ee_9Yqu-DrvNwriHT_mAwukDXYzO3wpOn_qiMEzFIatwDkdgY7uIs2J5MvwUONSiBrAx8CQsKGBg4XaiF-l5V2SVDJCA3bn_fAtuATUPn7xywZZHhUiMOz3VtnVWJQ8MEmgcVjn_-WiDYg1QBNZ5-cAIB1Ugiafbns51rgOqAav2T7ySu3l8whODNkF4f2efzO_Bzj54yfInVFBvz0z6OjTqbP-sBiulNgrD_k7Kr7TUnK74E05ApjwjelAFyclmlEi"/>
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-primary/20 flex items-center justify-center border border-primary/40 overflow-hidden relative">
+                  <Image fill alt="User Profile" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAxnD561ku33ee_9Yqu-DrvNwriHT_mAwukDXYzO3wpOn_qiMEzFIatwDkdgY7uIs2J5MvwUONSiBrAx8CQsKGBg4XaiF-l5V2SVDJCA3bn_fAtuATUPn7xywZZHhUiMOz3VtnVWJQ8MEmgcVjn_-WiDYg1QBNZ5-cAIB1Ugiafbns51rgOqAav2T7ySu3l8whODNkF4f2efzO_Bzj54yfInVFBvz0z6OjTqbP-sBiulNgrD_k7Kr7TUnK74E05ApjwjelAFyclmlEi"/>
                 </div>
               </div>
               
