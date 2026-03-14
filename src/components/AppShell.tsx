@@ -66,6 +66,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <span className="material-symbols-outlined">monitoring</span>
             <span className="font-medium">Intelligence Briefs</span>
           </Link>
+          <Link href="/panel" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${pathname === "/panel" ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-slate-400 hover:bg-white/5 hover:text-white"}`}>
+            <span className="material-symbols-outlined">travel_explore</span>
+            <span className="font-medium">Analyzer Panel</span>
+          </Link>
           <div className="pt-8 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Administrative</div>
           <Link href="/audit" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${pathname === "/audit" ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-slate-400 hover:bg-white/5 hover:text-white"}`}>
             <span className="material-symbols-outlined">history_edu</span>

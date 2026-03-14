@@ -1,0 +1,520 @@
+"use client";
+
+import React, { useState, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { 
+  Upload, Search, ShieldAlert, Image as ImageIcon, FileText, 
+  Bot, AlertTriangle, Link as LinkIcon, Smartphone, Globe, 
+  CheckCircle2, XCircle, Activity, Server, Shield
+} from "lucide-react";
+
+export default function AnalyzerPanel() {
+  const [activeMode, setActiveMode] = useState<"auto" | "manual">("auto");
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [indicator, setIndicator] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setMediaFile(e.target.files[0]);
+    }
+  };
+
+  const clearFile = () => {
+    setMediaFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleAnalyze = async () => {
+    setError(null);
+    setResult(null);
+    setIsAnalyzing(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("mode", activeMode);
+      
+      if (activeMode === "auto") {
+        if (!mediaFile) {
+          setError("Please select a media file to scan.");
+          setIsAnalyzing(false);
+          return;
+        }
+        formData.append("media", mediaFile);
+      } else {
+        if (!indicator.trim()) {
+          setError("Please enter a valid indicator to analyze.");
+          setIsAnalyzing(false);
+          return;
+        }
+        formData.append("indicator", indicator.trim());
+      }
+
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || data.details || "Failed to analyze.");
+      }
+
+      setResult(data);
+
+      // Save to Convex DB
+      try {
+        let token = "";
+        try {
+          const tokenRes = await fetch("/api/token");
+          const tokenData = await tokenRes.json();
+          token = tokenData.token;
+        } catch {}
+        
+        const convexUrl = process.env.NEXT_PUBLIC_CONVEX_SITE_URL || "https://admired-zebra-60.eu-west-1.convex.site";
+        const usedIndicator = activeMode === "manual" ? indicator.trim() : "Media Scan";
+
+        await fetch(`${convexUrl}/api/analysis`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { "Authorization": `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({
+            indicator: usedIndicator,
+            mode: activeMode,
+            results: data
+          })
+        }).catch(err => console.error("Convex fetch error:", err));
+      } catch (err) {
+        console.error("Failed to save analysis results to DB:", err);
+      }
+    } catch (err: any) {
+      setError(err.message || "An unknown error occurred.");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // Render Risk Level badge
+  const renderRiskBadge = (riskScore?: number, riskLevel?: string) => {
+    if (riskScore === undefined || !riskLevel) return null;
+    let bgColor = "bg-slate-100 text-slate-800";
+    if (riskLevel.toLowerCase() === "high") bgColor = "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800";
+    else if (riskLevel.toLowerCase() === "medium") bgColor = "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 border-orange-200 dark:border-orange-800";
+    else if (riskLevel.toLowerCase() === "low") bgColor = "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800";
+    
+    return (
+      <div className={`px-2.5 py-1 rounded-full text-xs font-bold border ${bgColor} flex items-center gap-1.5`}>
+        <Activity className="w-3.5 h-3.5" />
+        {riskLevel.toUpperCase()} RISK ({riskScore}/100)
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex h-[calc(100vh-4rem)] flex-col md:h-[calc(100vh-4.5rem)]">
+      <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
+        
+        <div className="mx-auto max-w-5xl space-y-8">
+          {/* Header */}
+          <div className="flex items-center gap-4 border-b border-primary/10 dark:border-border-subtle pb-6">
+            <div className="bg-primary/10 dark:bg-primary/20 p-3 rounded-2xl flex-shrink-0">
+              <ShieldAlert className="h-8 w-8 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Threat Analyzer Panel</h1>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Deep analysis for Media, Documents, and Cyber Indicators</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Input Section */}
+            <div className="lg:col-span-5 space-y-6">
+              
+              {/* Mode Toggle */}
+              <div className="flex bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl">
+                <button
+                  onClick={() => setActiveMode("auto")}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-lg transition-all ${
+                    activeMode === "auto" 
+                      ? "bg-white dark:bg-surface-dark text-primary shadow-sm" 
+                      : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                  }`}
+                >
+                  <ImageIcon className="w-4 h-4" /> Media Scan (OCR)
+                </button>
+                <button
+                  onClick={() => setActiveMode("manual")}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-lg transition-all ${
+                    activeMode === "manual" 
+                      ? "bg-white dark:bg-surface-dark text-primary shadow-sm" 
+                      : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                  }`}
+                >
+                  <Search className="w-4 h-4" /> Single Indicator
+                </button>
+              </div>
+
+              {/* Form Input Card */}
+              <Card className="p-5 dark:bg-surface-dark dark:border-border-subtle shadow-lg">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-2 text-slate-800 dark:text-slate-200 font-semibold">
+                    {activeMode === "auto" ? (
+                      <><ImageIcon className="w-5 h-5 text-primary" /> Upload Suspicious Media</>
+                    ) : (
+                      <><Search className="w-5 h-5 text-primary" /> Analyze Indicator</>
+                    )}
+                  </div>
+                  
+                  {activeMode === "auto" ? (
+                    <div className="space-y-4">
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Upload a screenshot or document. The OCR tool will extract text, patterns, and run nodal analysis on all entities.
+                      </p>
+                      
+                      <div 
+                        className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center text-center transition-all ${
+                          mediaFile 
+                            ? "border-primary/50 bg-primary/5" 
+                            : "border-slate-300 dark:border-slate-700 hover:border-primary/40 dark:hover:border-primary/40"
+                        }`}
+                      >
+                        {mediaFile ? (
+                          <div className="space-y-3">
+                            <div className="w-16 h-16 bg-white dark:bg-slate-800 rounded-2xl shadow-sm flex items-center justify-center mx-auto">
+                              <FileText className="w-8 h-8 text-emerald-500" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 break-all">{mediaFile.name}</p>
+                              <p className="text-xs text-slate-500 mt-0.5">{(mediaFile.size / 1024).toFixed(1)} KB</p>
+                            </div>
+                            <Button variant="ghost" size="sm" onClick={clearFile} className="text-red-500 hover:text-red-600 hover:bg-red-50">
+                              Remove File
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="space-y-4 w-full">
+                            <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto text-slate-400">
+                              <Upload className="w-8 h-8" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Click to browse files</p>
+                              <p className="text-xs text-slate-500 mt-1">Supports JPG, PNG, WEBP</p>
+                            </div>
+                            <Button 
+                              variant="outline" 
+                              onClick={() => fileInputRef.current?.click()}
+                              className="mx-auto border-primary/20 hover:bg-primary/5"
+                            >
+                              Browse Files
+                            </Button>
+                          </div>
+                        )}
+                        <input 
+                          type="file" 
+                          ref={fileInputRef} 
+                          className="hidden" 
+                          accept="image/*"
+                          onChange={handleFileChange}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Enter a domain, URL, phone number, or APK reference to run deep threat intelligence lookup.
+                      </p>
+                      <Input
+                        placeholder="e.g. +919876543210 or scamdomain.com"
+                        value={indicator}
+                        onChange={(e) => setIndicator(e.target.value)}
+                        className="py-6 px-4 bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 focus-visible:ring-primary/30 text-base"
+                      />
+                    </div>
+                  )}
+
+                  <Button 
+                    onClick={handleAnalyze} 
+                    disabled={isAnalyzing || (activeMode === "auto" ? !mediaFile : !indicator.trim())}
+                    className="w-full py-6 text-base font-semibold shadow-lg shadow-primary/25 mt-4"
+                  >
+                    {isAnalyzing ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Running Analysis...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <ShieldAlert className="w-5 h-5" /> Start Deep Analysis
+                      </span>
+                    )}
+                  </Button>
+                </div>
+              </Card>
+            </div>
+
+            {/* Results Section */}
+            <div className="lg:col-span-7">
+              {error && (
+                <div className="p-4 mb-6 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-start gap-3 dark:bg-red-950/20 dark:border-red-900 dark:text-red-400 animate-in fade-in-0 duration-300">
+                  <XCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-sm">Analysis Failed</h4>
+                    <p className="text-xs mt-1 opacity-90">{error}</p>
+                  </div>
+                </div>
+              )}
+
+              {result && !isAnalyzing ? (
+                <div className="space-y-6 animate-in slide-in-from-bottom-4 fade-in-0 duration-500">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                      <Activity className="w-5 h-5 text-primary" /> Intelligence Report
+                    </h3>
+                  </div>
+
+                  {/* Manual Mode Result parsing */}
+                  {result.mode === "manual" && result.analysis && (
+                    <div className="space-y-4">
+                      {/* Top Level Domain Risk */}
+                      <Card className="p-5 border-l-4 border-l-primary dark:bg-surface-dark dark:border-border-subtle shadow-sm overflow-hidden relative">
+                        <div className="absolute -right-6 -top-6 text-primary/5">
+                          <Shield className="w-32 h-32" />
+                        </div>
+                        <div className="relative z-10 flex flex-wrap justify-between items-start gap-4">
+                          <div>
+                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1">Target Indicator</p>
+                            <h2 className="text-xl font-bold dark:text-white break-all">{result.indicator}</h2>
+                          </div>
+                          {renderRiskBadge(
+                            result.analysis.risk_assessment?.risk_score, 
+                            result.analysis.risk_assessment?.risk_level
+                          )}
+                        </div>
+                      </Card>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Domain/Network Meta */}
+                        {result.analysis.domain_metadata && result.analysis.domain_metadata !== "NA" && (
+                          <Card className="p-4 bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800">
+                            <h4 className="text-sm font-bold flex items-center gap-2 mb-3 text-slate-700 dark:text-slate-300">
+                              <Globe className="w-4 h-4 text-blue-500" /> Web Infrastructure
+                            </h4>
+                            <div className="space-y-2 text-xs">
+                              {result.analysis.domain_metadata.hosting_ip && (
+                                <div className="flex justify-between border-b border-slate-200 dark:border-slate-800 pb-1">
+                                  <span className="text-slate-500">Hosting IP</span>
+                                  <span className="font-mono font-medium">{result.analysis.domain_metadata.hosting_ip}</span>
+                                </div>
+                              )}
+                              {result.analysis.domain_metadata.registrar && (
+                                <div className="flex justify-between border-b border-slate-200 dark:border-slate-800 pb-1">
+                                  <span className="text-slate-500">Registrar</span>
+                                  <span className="font-medium text-right max-w-[150px] truncate">{result.analysis.domain_metadata.registrar}</span>
+                                </div>
+                              )}
+                              {result.analysis.domain_metadata.age_days !== null && (
+                                <div className="flex justify-between border-b border-slate-200 dark:border-slate-800 pb-1">
+                                  <span className="text-slate-500">Domain Age</span>
+                                  <span className="font-medium">{result.analysis.domain_metadata.age_days} days</span>
+                                </div>
+                              )}
+                            </div>
+                          </Card>
+                        )}
+                        
+                        {/* Phone Meta */}
+                        {result.analysis.phoneinfoga && result.analysis.phoneinfoga !== "NA" && result.analysis.phoneinfoga.status === "ok" && (
+                          <Card className="p-4 bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800">
+                             <h4 className="text-sm font-bold flex items-center gap-2 mb-3 text-slate-700 dark:text-slate-300">
+                              <Smartphone className="w-4 h-4 text-emerald-500" /> Phone Intel
+                            </h4>
+                            <div className="space-y-2 text-xs">
+                              <div className="flex justify-between border-b border-slate-200 dark:border-slate-800 pb-1">
+                                  <span className="text-slate-500">Country</span>
+                                  <span className="font-medium">{result.analysis.phoneinfoga.structured.country}</span>
+                              </div>
+                              <div className="flex justify-between border-b border-slate-200 dark:border-slate-800 pb-1">
+                                  <span className="text-slate-500">Intl Format</span>
+                                  <span className="font-mono font-medium">+{result.analysis.phoneinfoga.structured.international_number}</span>
+                              </div>
+                              <div className="flex justify-between border-b border-slate-200 dark:border-slate-800 pb-1">
+                                  <span className="text-slate-500">Valid Format</span>
+                                  <span className="font-medium">{result.analysis.phoneinfoga.structured.valid_format ? "Yes" : "No"}</span>
+                              </div>
+                            </div>
+                          </Card>
+                        )}
+                        
+                        {/* Website Meta */}
+                        {result.analysis.website_analysis && result.analysis.website_analysis !== "NA" && result.analysis.website_analysis.status === "ok" && (
+                          <Card className="p-4 bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 md:col-span-2">
+                             <h4 className="text-sm font-bold flex items-center gap-2 mb-3 text-slate-700 dark:text-slate-300">
+                              <Server className="w-4 h-4 text-purple-500" /> Website Content Analysis
+                            </h4>
+                            <div className="space-y-3">
+                              {result.analysis.website_analysis.title && (
+                                <div>
+                                  <span className="text-[10px] text-slate-500 uppercase font-bold block mb-0.5">Title</span>
+                                  <p className="text-xs truncate dark:text-slate-300">{result.analysis.website_analysis.title}</p>
+                                </div>
+                              )}
+                              <div className="flex gap-4">
+                                <div className={`px-2 py-1 rounded text-[10px] font-semibold flex items-center gap-1 ${result.analysis.website_analysis.login_form_detected ? "bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800" : "bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"}`}>
+                                    {result.analysis.website_analysis.login_form_detected ? "Login Form Detected" : "No Login Form"}
+                                </div>
+                                <div className={`px-2 py-1 rounded text-[10px] font-semibold flex items-center gap-1 ${result.analysis.website_analysis.financial_keywords_detected ? "bg-red-100 text-red-800 border border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800" : "bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"}`}>
+                                    {result.analysis.website_analysis.financial_keywords_detected ? "Financial Keywords Matched" : "No Financial Keywords"}
+                                </div>
+                              </div>
+                            </div>
+                          </Card>
+                        )}
+                      </div>
+
+                      <Card className="p-4 bg-slate-900 dark:bg-black rounded-xl overflow-hidden mt-4">
+                        <div className="flex items-center justify-between mb-2">
+                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Raw Core Output</span>
+                        </div>
+                        <pre className="text-[10px] text-emerald-400 font-mono overflow-x-auto p-2 bg-black/50 rounded-lg max-h-[300px] overflow-y-auto">
+                          {JSON.stringify(result, null, 2)}
+                        </pre>
+                      </Card>
+                    </div>
+                  )}
+
+                  {/* Auto Mode Result parsing */}
+                  {result.mode === "automation" && (
+                    <div className="space-y-6">
+                      <Card className="p-4 bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800">
+                         <h4 className="text-sm font-bold flex items-center gap-2 mb-3 text-slate-700 dark:text-slate-300 border-b border-primary/10 pb-2">
+                           <Bot className="w-5 h-5 text-primary" /> Pattern Recognition Results
+                         </h4>
+                         
+                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                           <div className="bg-white dark:bg-surface-dark p-3 rounded-lg border border-slate-100 dark:border-border-subtle shadow-sm text-center">
+                              <span className="block text-xl font-bold text-slate-800 dark:text-slate-200">
+                                {result.extracted_indicators?.phones?.length && result.extracted_indicators.phones[0] !== "NA" ? result.extracted_indicators.phones.length : 0}
+                              </span>
+                              <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold flex justify-center items-center gap-1 mt-1"><Smartphone className="w-3 h-3"/> Phones</span>
+                           </div>
+                           <div className="bg-white dark:bg-surface-dark p-3 rounded-lg border border-slate-100 dark:border-border-subtle shadow-sm text-center">
+                              <span className="block text-xl font-bold text-slate-800 dark:text-slate-200">
+                                 {result.extracted_indicators?.urls?.length && result.extracted_indicators.urls[0] !== "NA" ? result.extracted_indicators.urls.length : 0}
+                              </span>
+                              <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold flex justify-center items-center gap-1 mt-1"><LinkIcon className="w-3 h-3"/> URLs</span>
+                           </div>
+                           <div className="bg-white dark:bg-surface-dark p-3 rounded-lg border border-slate-100 dark:border-border-subtle shadow-sm text-center">
+                              <span className="block text-xl font-bold text-slate-800 dark:text-slate-200">
+                                 {result.extracted_indicators?.domains?.length && result.extracted_indicators.domains[0] !== "NA" ? result.extracted_indicators.domains.length : 0}
+                              </span>
+                              <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold flex justify-center items-center gap-1 mt-1"><Globe className="w-3 h-3"/> Domains</span>
+                           </div>
+                           <div className="bg-white dark:bg-surface-dark p-3 rounded-lg border border-slate-100 dark:border-border-subtle shadow-sm text-center">
+                              <span className="block text-xl font-bold text-slate-800 dark:text-slate-200">
+                                 {result.extracted_indicators?.apks?.length && result.extracted_indicators.apks[0] !== "NA" ? result.extracted_indicators.apks.length : 0}
+                              </span>
+                              <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold flex justify-center items-center gap-1 mt-1"><FileText className="w-3 h-3"/> APKs</span>
+                           </div>
+                         </div>
+                      </Card>
+
+                      <div className="space-y-4">
+                        <h4 className="text-sm font-bold flex items-center gap-2 text-slate-700 dark:text-slate-300 ml-1">
+                          <Activity className="w-4 h-4 text-red-500" /> Threat Analysis Breakdown
+                        </h4>
+                        
+                        {Array.isArray(result.analysis_results) && result.analysis_results.length > 0 ? (
+                           result.analysis_results.map((analysisItem: any, idx: number) => (
+                              <Card key={idx} className="p-4 bg-white dark:bg-surface-dark border-slate-200 dark:border-border-subtle shadow-sm relative overflow-hidden">
+                                 <div className="flex justify-between items-start mb-3 border-b border-primary/5 pb-2">
+                                    <h5 className="font-mono text-sm font-bold text-slate-800 dark:text-slate-200 break-all">{analysisItem.indicator}</h5>
+                                    {renderRiskBadge(
+                                      analysisItem.analysis?.risk_assessment?.risk_score,
+                                      analysisItem.analysis?.risk_assessment?.risk_level
+                                    )}
+                                 </div>
+                                 <div className="text-xs text-slate-600 dark:text-slate-400 space-y-1">
+                                    {analysisItem.analysis?.website_analysis?.title && (
+                                       <p><span className="font-semibold text-slate-800 dark:text-slate-300">Site Title:</span> {analysisItem.analysis.website_analysis.title}</p>
+                                    )}
+                                    {analysisItem.analysis?.phoneinfoga?.structured?.country && (
+                                       <p><span className="font-semibold text-slate-800 dark:text-slate-300">Country:</span> {analysisItem.analysis.phoneinfoga.structured.country}</p>
+                                    )}
+                                    {!analysisItem.analysis?.website_analysis?.title && !analysisItem.analysis?.phoneinfoga?.structured?.country && (
+                                       <p className="italic">Basic indicator resolved. Expanding JSON view for details.</p>
+                                    )}
+                                 </div>
+                              </Card>
+                           ))
+                        ) : (
+                          <div className="p-8 text-center text-slate-500 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl">
+                            No actionable threat indicators were extracted from the provided media.
+                          </div>
+                        )}
+                      </div>
+
+                      <Card className="p-4 bg-slate-900 dark:bg-black rounded-xl overflow-hidden mt-4">
+                        <div className="flex items-center justify-between mb-2">
+                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Raw Subprocess Result</span>
+                        </div>
+                        <pre className="text-[10px] text-emerald-400 font-mono overflow-x-auto p-2 bg-black/50 rounded-lg max-h-[300px] overflow-y-auto">
+                          {JSON.stringify(result, null, 2)}
+                        </pre>
+                      </Card>
+                    </div>
+                  )}
+                  
+                </div>
+              ) : !isAnalyzing ? (
+                <div className="h-full min-h-[400px] flex items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-surface-dark/20 text-center p-8">
+                  <div className="space-y-4 max-w-sm">
+                    <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto text-slate-400">
+                      <ShieldAlert className="w-8 h-8 opacity-50" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Awaiting Analysis</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                      Upload an image or specify an indicator on the left side to run Nodal Assistance, Pattern Recognition, and Threat Analysis.
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Skeleton/Loading State */}
+              {isAnalyzing && (
+                <div className="space-y-6 animate-pulse">
+                   <div className="h-8 w-48 bg-slate-200 dark:bg-slate-800 rounded-md mb-6"></div>
+                   <Card className="p-6">
+                      <div className="h-20 w-full bg-slate-100 dark:bg-slate-800/50 rounded-xl mb-4"></div>
+                      <div className="space-y-3 mt-8">
+                        <div className="h-4 w-3/4 bg-slate-100 dark:bg-slate-800/50 rounded-md"></div>
+                        <div className="h-4 w-1/2 bg-slate-100 dark:bg-slate-800/50 rounded-md"></div>
+                        <div className="h-4 w-5/6 bg-slate-100 dark:bg-slate-800/50 rounded-md"></div>
+                      </div>
+                   </Card>
+                   <Card className="p-6 bg-slate-50 dark:bg-slate-900/20">
+                      <div className="h-6 w-32 bg-slate-200 dark:bg-slate-800 rounded-md mb-4"></div>
+                      <div className="grid grid-cols-2 gap-4">
+                         <div className="h-24 bg-slate-100 dark:bg-slate-800/50 rounded-xl"></div>
+                         <div className="h-24 bg-slate-100 dark:bg-slate-800/50 rounded-xl"></div>
+                      </div>
+                   </Card>
+                </div>
+              )}
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
