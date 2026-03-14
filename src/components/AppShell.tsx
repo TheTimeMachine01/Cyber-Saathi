@@ -3,18 +3,18 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import Image from "next/image";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { UserButton, SignInButton, useAuth } from "@clerk/nextjs";
+
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const pathname = usePathname();
+  const { isLoaded, isSignedIn } = useAuth();
 
   const handleCloseDropdowns = () => {
     setIsNotificationsOpen(false);
-    setIsProfileOpen(false);
   };
 
   return (
@@ -29,7 +29,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Sidebar Navigation */}
       <aside 
-        className={`fixed inset-y-0 left-0 z-50 w-72 md:w-72 flex-shrink-0 border-r border-border-subtle bg-surface-dark flex flex-col transform transition-transform duration-300 ease-in-out shadow-2xl md:relative md:translate-x-0 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+        className={`fixed inset-y-0 left-0 z-50 w-72 md:w-72 shrink-0 border-r border-border-subtle bg-surface-dark flex flex-col transform transition-transform duration-300 ease-in-out shadow-2xl md:relative md:translate-x-0 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         <div className="p-6 flex items-center justify-between md:justify-start gap-3">
           <div className="flex items-center gap-3">
@@ -115,7 +115,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsNotificationsOpen(!isNotificationsOpen);
-                  setIsProfileOpen(false);
                 }}
               >
                 <span className="material-symbols-outlined">notifications</span>
@@ -146,38 +145,28 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             
             <ThemeToggle />
 
-            <div className="relative">
-              <div 
-                className="flex items-center gap-3 pl-2 cursor-pointer group"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsProfileOpen(!isProfileOpen);
-                  setIsNotificationsOpen(false);
-                }}
-              >
-                <div className="hidden md:block text-right">
-                  <p className="text-xs font-bold text-slate-900 dark:text-white">Agent Marcus Thorne</p>
-                  <p className="text-[10px] text-slate-500">Badge #44921</p>
+            <div className="relative flex items-center">
+              {isLoaded && isSignedIn ? (
+                <div className="flex items-center gap-3">
+                  <div className="hidden md:block text-right mr-2">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white">Agent User</p>
+                    <p className="text-[10px] text-slate-500">Active</p>
+                  </div>
+                  <UserButton 
+                    appearance={{
+                      elements: {
+                        userButtonAvatarBox: "w-8 h-8 md:w-10 md:h-10 border border-primary/40"
+                      }
+                    }}
+                  />
                 </div>
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-primary/20 flex items-center justify-center border border-primary/40 overflow-hidden relative">
-                  <Image fill alt="User Profile" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAxnD561ku33ee_9Yqu-DrvNwriHT_mAwukDXYzO3wpOn_qiMEzFIatwDkdgY7uIs2J5MvwUONSiBrAx8CQsKGBg4XaiF-l5V2SVDJCA3bn_fAtuATUPn7xywZZHhUiMOz3VtnVWJQ8MEmgcVjn_-WiDYg1QBNZ5-cAIB1Ugiafbns51rgOqAav2T7ySu3l8whODNkF4f2efzO_Bzj54yfInVFBvz0z6OjTqbP-sBiulNgrD_k7Kr7TUnK74E05ApjwjelAFyclmlEi"/>
-                </div>
-              </div>
-              
-              {/* Profile Dropdown */}
-              {isProfileOpen && (
-                <div 
-                  className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-subtle rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Link href="/settings" className="block px-4 py-3 text-sm text-slate-700 dark:text-slate-300 hover:bg-primary hover:text-white transition-colors" onClick={() => setIsProfileOpen(false)}>
-                    Profile Settings
-                  </Link>
-                  <button className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-300 hover:bg-accent-red hover:text-white transition-colors border-t border-slate-100 dark:border-white/5">
-                    Sign Out
+              ) : isLoaded && !isSignedIn ? (
+                <SignInButton mode="modal">
+                  <button className="text-sm font-bold bg-primary text-white px-4 py-2 rounded-xl hover:bg-primary/90 transition-colors">
+                    Sign In
                   </button>
-                </div>
-              )}
+                </SignInButton>
+              ) : null}
             </div>
           </div>
         </header>
