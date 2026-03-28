@@ -158,7 +158,10 @@ export default function AnalysisResults({ results }: AnalysisResultsProps) {
         // Helper to safely extract objects or return null if "NA"
         const safelyGetData = (data: any) => (data === "NA" || typeof data === 'string' ? null : data);
 
-        const phoneData = safelyGetData(analysis.phoneinfoga?.structured);
+        // Safe extraction to avoid TS errors with "NA" union types
+        const phoneinfoga = analysis.phoneinfoga !== "NA" ? analysis.phoneinfoga : null;
+        const phoneData = safelyGetData(phoneinfoga?.structured);
+        
         const ipData = safelyGetData(analysis.ip_information);
         const domainData = safelyGetData(analysis.domain_metadata);
         const webData = safelyGetData(analysis.website_analysis);

@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 
+import path from "path";
+
 // Paths to the system prompt files
-const INTRO_PROMPT_PATH = "/home/ashish/Code/backend/cyber/info/intro.txt";
-const INVALID_ID_PROMPT_PATH = "/home/ashish/Code/backend/cyber/info/invalid_ID.txt";
-const CLASSIFY_CASE_PROMPT_PATH = "/home/ashish/Code/backend/cyber/info/classify_case.txt";
+const PROMPTS_DIR = path.join(process.cwd(), "src", "lib", "prompts");
+const INTRO_PROMPT_PATH = path.join(PROMPTS_DIR, "intro.txt");
+const INVALID_ID_PROMPT_PATH = path.join(PROMPTS_DIR, "invalid_ID.txt");
+const CLASSIFY_CASE_PROMPT_PATH = path.join(PROMPTS_DIR, "classify_case.txt");
 
 // Local Ollama config — override via .env.local
 const OLLAMA_URL = process.env.OLLAMA_URL ?? "http://10.42.0.15:11434";
