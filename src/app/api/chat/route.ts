@@ -11,7 +11,7 @@ const CLASSIFY_CASE_PROMPT_PATH = path.join(PROMPTS_DIR, "classify_case.txt");
 // NVIDIA NIM Configuration
 const NVIDIA_API_KEY = process.env.NVIDIA_NIM_API_KEY;
 const NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1";
-const NVIDIA_MODEL = process.env.NVIDIA_NIM_MODEL || "meta/llama-3.1-405b-instruct";
+const NVIDIA_MODEL = process.env.NVIDIA_NIM_MODEL || "mistralai/mistral-small-3.1-24b-instruct-2503";
 
 async function callNvidiaNIM(systemPrompt: string, userPrompt: string, history: any[] = []) {
   if (!NVIDIA_API_KEY) {
