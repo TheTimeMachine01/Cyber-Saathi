@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import AnalysisResults from "@/components/AnalysisResults";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/api";
 import { 
   Upload, Search, ShieldAlert, Image as ImageIcon, FileText, 
   Bot, AlertTriangle, Link as LinkIcon, Smartphone, Globe, 
-  CheckCircle2, XCircle, Activity, Server, Shield
+  CheckCircle2, XCircle, Activity, Server, Shield, History
 } from "lucide-react";
 
 export default function AnalyzerPanel() {
@@ -20,6 +22,9 @@ export default function AnalyzerPanel() {
   const [error, setError] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch history from Convex
+  const history = useQuery(api.analysis_logs.list) || [];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -38,16 +43,26 @@ export default function AnalyzerPanel() {
     setIsAnalyzing(true);
 
     try {
+      const tokenRes = await fetch("/api/token");
+      const tokenData = await tokenRes.json();
+      const token = tokenData.token;
+
+      if (!token) {
+        throw new Error("Authentication failed. Please sign in again.");
+      }
+
+      const analysisServiceUrl = process.env.NEXT_PUBLIC_ANALYSIS_SERVICE_URL || "http://localhost:8000";
       const formData = new FormData();
-      formData.append("mode", activeMode);
       
+      let endpoint = `${analysisServiceUrl}/analyze`;
+
       if (activeMode === "auto") {
         if (!mediaFile) {
           setError("Please select a media file to scan.");
           setIsAnalyzing(false);
           return;
         }
-        formData.append("media", mediaFile);
+        formData.append("file", mediaFile);
       } else {
         if (!indicator.trim()) {
           setError("Please enter a valid indicator to analyze.");
@@ -55,48 +70,28 @@ export default function AnalyzerPanel() {
           return;
         }
         formData.append("indicator", indicator.trim());
+        formData.append("mode", "manual");
       }
 
-      const response = await fetch("/api/analyze", {
+      const response = await fetch(endpoint, {
         method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        },
         body: formData,
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || data.details || "Failed to analyze.");
+        throw new Error(data.error || data.detail || "Failed to analyze.");
       }
 
       setResult(data);
 
-      // Save to Convex DB
-      try {
-        let token = "";
-        try {
-          const tokenRes = await fetch("/api/token");
-          const tokenData = await tokenRes.json();
-          token = tokenData.token;
-        } catch {}
-        
-        const convexUrl = process.env.NEXT_PUBLIC_CONVEX_SITE_URL || "https://admired-zebra-60.eu-west-1.convex.site";
-        const usedIndicator = activeMode === "manual" ? indicator.trim() : "Media Scan";
-
-        await fetch(`${convexUrl}/api/analysis`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { "Authorization": `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({
-            indicator: usedIndicator,
-            mode: activeMode,
-            results: data
-          })
-        }).catch(err => console.error("Convex fetch error:", err));
-      } catch (err) {
-        console.error("Failed to save analysis results to DB:", err);
-      }
+      // The backend now syncs results to Convex automatically if the token is valid.
+      // We don't need to manually save to Convex here anymore, but we can if the backend doesn't.
+      // Based on instructions, the FastAPI service syncs it.
     } catch (err: any) {
       setError(err.message || "An unknown error occurred.");
     } finally {
@@ -260,6 +255,49 @@ export default function AnalyzerPanel() {
                   </Button>
                 </div>
               </Card>
+
+              {/* History Dashboard */}
+              <div className="space-y-4 pt-4">
+                <h3 className="text-sm font-bold flex items-center gap-2 text-slate-700 dark:text-slate-300 ml-1">
+                  <History className="w-4 h-4 text-primary" /> Recent Investigations
+                </h3>
+                <div className="space-y-3">
+                  {history.length > 0 ? (
+                    history.slice(0, 5).map((log: any) => (
+                      <button 
+                        key={log._id}
+                        onClick={() => setResult(log.results)}
+                        className="w-full text-left group"
+                      >
+                        <Card className="p-3 border-slate-200 dark:border-border-subtle hover:border-primary/40 dark:hover:border-primary/40 transition-all bg-white/50 dark:bg-surface-dark/50 group-hover:bg-white dark:group-hover:bg-surface-dark shadow-sm">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500 group-hover:text-primary transition-colors">
+                                {log.mode === 'manual' ? <Search className="w-4 h-4" /> : <ImageIcon className="w-4 h-4" />}
+                              </div>
+                              <div>
+                                <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate max-w-[150px]">{log.indicator}</p>
+                                <p className="text-[10px] text-slate-500">{new Date(log._creationTime).toLocaleString()}</p>
+                              </div>
+                            </div>
+                            <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                              log.results?.risk_assessment?.risk_level === 'High' 
+                                ? 'bg-red-50 text-red-600 border-red-100' 
+                                : 'bg-slate-50 text-slate-500 border-slate-100'
+                            }`}>
+                              {log.results?.risk_assessment?.risk_level || 'Low'}
+                            </div>
+                          </div>
+                        </Card>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="text-center p-6 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-surface-dark/20">
+                      <p className="text-xs text-slate-500">No recent logs found.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Results Section */}

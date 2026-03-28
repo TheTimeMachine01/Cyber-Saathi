@@ -28,6 +28,9 @@ interface Message {
   isError?: boolean;
 }
 
+import { useQuery } from "convex/react";
+import { api } from "@/convex/api";
+
 // Try to parse a JSON case number response from the model
 function parseCaseResponse(text: string): { caseNumber: string | null; originalJson: string } | null {
   try {
@@ -48,6 +51,10 @@ function RenderMessage({ content, currentCaseNumber }: { content: string, curren
   const parsed = parseCaseResponse(content);
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  
+  // For Auto-fill feature
+  const [importing, setImporting] = useState(false);
+  const latestAnalysis = useQuery(api.analysis_logs.list);
 
   const handleSaveCase = async (classifyData: { case_type?: string, platform?: string, financial_fraud?: string, website_involved?: string }) => {
       if (!currentCaseNumber) return;
@@ -82,6 +89,28 @@ function RenderMessage({ content, currentCaseNumber }: { content: string, curren
       } finally {
           setIsSaving(false);
       }
+  };
+
+  const handleImportLatest = async () => {
+    if (!latestAnalysis || latestAnalysis.length === 0) return;
+    setImporting(true);
+    const latest = latestAnalysis[0];
+    
+    // Auto-classify based on results
+    let inferredType = "General Cybercrime";
+    const results = latest.results;
+    if (results?.extracted_indicators?.urls?.length > 0) inferredType = "Phishing / Malicious Link";
+    if (results?.extracted_indicators?.phones?.length > 0) inferredType = "Tele-Fraud / Vishing";
+    
+    // Pre-fill the form by simulating a model response or updating state if possible
+    // Here we can just manually call handleSaveCase with the inferred data
+    await handleSaveCase({
+      case_type: inferredType,
+      platform: latest.mode === 'auto' ? "Image/Media Analysis" : "Manual Indicator Scan",
+      financial_fraud: results?.risk_assessment?.risk_level === 'High' ? "Potential" : "Under Investigation",
+      website_involved: results?.extracted_indicators?.domains?.[0] || "NA"
+    });
+    setImporting(false);
   };
 
 
@@ -133,7 +162,18 @@ function RenderMessage({ content, currentCaseNumber }: { content: string, curren
                 </div>
             </div>
             
-            <div className="mt-4 flex justify-end">
+            <div className="mt-4 flex justify-end gap-2">
+                {latestAnalysis && latestAnalysis.length > 0 && (
+                   <Button
+                      onClick={handleImportLatest}
+                      disabled={importing || isSaved || !currentCaseNumber}
+                      size="sm"
+                      variant="outline"
+                      className="border-blue-400 text-blue-700 hover:bg-blue-50"
+                   >
+                      {importing ? "Importing..." : "Import from Analysis"}
+                   </Button>
+                )}
                 <Button 
                     onClick={() => handleSaveCase(classifyParsed!)}
                     disabled={isSaving || isSaved || !currentCaseNumber}
