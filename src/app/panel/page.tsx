@@ -4,6 +4,7 @@ import React, { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import AnalysisResults from "@/components/AnalysisResults";
 import { 
   Upload, Search, ShieldAlert, Image as ImageIcon, FileText, 
   Bot, AlertTriangle, Link as LinkIcon, Smartphone, Globe, 
@@ -393,75 +394,92 @@ export default function AnalyzerPanel() {
 
                   {/* Auto Mode Result parsing */}
                   {result.mode === "automation" && (
-                    <div className="space-y-6">
-                      <Card className="p-4 bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800">
-                         <h4 className="text-sm font-bold flex items-center gap-2 mb-3 text-slate-700 dark:text-slate-300 border-b border-primary/10 pb-2">
+                    <div className="space-y-8">
+                      {/* Summary Stats Grid */}
+                      <Card className="p-5 bg-white dark:bg-surface-dark border-slate-200 dark:border-border-subtle shadow-lg">
+                         <h4 className="text-sm font-bold flex items-center gap-2 mb-4 text-slate-700 dark:text-slate-300 border-b border-primary/10 pb-2">
                            <Bot className="w-5 h-5 text-primary" /> Pattern Recognition Results
                          </h4>
                          
-                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                           <div className="bg-white dark:bg-surface-dark p-3 rounded-lg border border-slate-100 dark:border-border-subtle shadow-sm text-center">
-                              <span className="block text-xl font-bold text-slate-800 dark:text-slate-200">
-                                {result.extracted_indicators?.phones?.length && result.extracted_indicators.phones[0] !== "NA" ? result.extracted_indicators.phones.length : 0}
-                              </span>
-                              <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold flex justify-center items-center gap-1 mt-1"><Smartphone className="w-3 h-3"/> Phones</span>
-                           </div>
-                           <div className="bg-white dark:bg-surface-dark p-3 rounded-lg border border-slate-100 dark:border-border-subtle shadow-sm text-center">
-                              <span className="block text-xl font-bold text-slate-800 dark:text-slate-200">
-                                 {result.extracted_indicators?.urls?.length && result.extracted_indicators.urls[0] !== "NA" ? result.extracted_indicators.urls.length : 0}
-                              </span>
-                              <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold flex justify-center items-center gap-1 mt-1"><LinkIcon className="w-3 h-3"/> URLs</span>
-                           </div>
-                           <div className="bg-white dark:bg-surface-dark p-3 rounded-lg border border-slate-100 dark:border-border-subtle shadow-sm text-center">
-                              <span className="block text-xl font-bold text-slate-800 dark:text-slate-200">
-                                 {result.extracted_indicators?.domains?.length && result.extracted_indicators.domains[0] !== "NA" ? result.extracted_indicators.domains.length : 0}
-                              </span>
-                              <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold flex justify-center items-center gap-1 mt-1"><Globe className="w-3 h-3"/> Domains</span>
-                           </div>
-                           <div className="bg-white dark:bg-surface-dark p-3 rounded-lg border border-slate-100 dark:border-border-subtle shadow-sm text-center">
-                              <span className="block text-xl font-bold text-slate-800 dark:text-slate-200">
-                                 {result.extracted_indicators?.apks?.length && result.extracted_indicators.apks[0] !== "NA" ? result.extracted_indicators.apks.length : 0}
-                              </span>
-                              <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold flex justify-center items-center gap-1 mt-1"><FileText className="w-3 h-3"/> APKs</span>
-                           </div>
+                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                           {[
+                             { label: 'Phones', icon: Smartphone, key: 'phones' },
+                             { label: 'URLs', icon: LinkIcon, key: 'urls' },
+                             { label: 'Domains', icon: Globe, key: 'domains' },
+                             { label: 'APKs', icon: FileText, key: 'apks' },
+                             { label: 'UPI IDs', icon: Activity, key: 'upi_ids' },
+                             { label: 'Emails', icon: Search, key: 'emails' }
+                           ].map((item) => {
+                              const count = result.extracted_indicators?.[item.key]?.length || 0;
+                              return (
+                                <div key={item.key} className={`p-3 rounded-xl border ${count > 0 ? 'bg-primary/5 border-primary/20 dark:bg-primary/10' : 'bg-slate-50 border-slate-100 dark:bg-slate-900/40 dark:border-slate-800'} text-center transition-all`}>
+                                    <span className={`block text-xl font-bold ${count > 0 ? 'text-primary' : 'text-slate-400'}`}>
+                                      {count}
+                                    </span>
+                                    <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold flex justify-center items-center gap-1 mt-1">
+                                      <item.icon className="w-3 h-3"/> {item.label}
+                                    </span>
+                                </div>
+                              );
+                           })}
                          </div>
                       </Card>
 
+                      {/* Deep Analysis Cards */}
+                      {/* Deep Analysis Cards */}
                       <div className="space-y-4">
                         <h4 className="text-sm font-bold flex items-center gap-2 text-slate-700 dark:text-slate-300 ml-1">
                           <Activity className="w-4 h-4 text-red-500" /> Threat Analysis Breakdown
                         </h4>
-                        
-                        {Array.isArray(result.analysis_results) && result.analysis_results.length > 0 ? (
-                           result.analysis_results.map((analysisItem: any, idx: number) => (
-                              <Card key={idx} className="p-4 bg-white dark:bg-surface-dark border-slate-200 dark:border-border-subtle shadow-sm relative overflow-hidden">
-                                 <div className="flex justify-between items-start mb-3 border-b border-primary/5 pb-2">
-                                    <h5 className="font-mono text-sm font-bold text-slate-800 dark:text-slate-200 break-all">{analysisItem.indicator}</h5>
-                                    {renderRiskBadge(
-                                      analysisItem.analysis?.risk_assessment?.risk_score,
-                                      analysisItem.analysis?.risk_assessment?.risk_level
-                                    )}
-                                 </div>
-                                 <div className="text-xs text-slate-600 dark:text-slate-400 space-y-1">
-                                    {analysisItem.analysis?.website_analysis?.title && (
-                                       <p><span className="font-semibold text-slate-800 dark:text-slate-300">Site Title:</span> {analysisItem.analysis.website_analysis.title}</p>
-                                    )}
-                                    {analysisItem.analysis?.phoneinfoga?.structured?.country && (
-                                       <p><span className="font-semibold text-slate-800 dark:text-slate-300">Country:</span> {analysisItem.analysis.phoneinfoga.structured.country}</p>
-                                    )}
-                                    {!analysisItem.analysis?.website_analysis?.title && !analysisItem.analysis?.phoneinfoga?.structured?.country && (
-                                       <p className="italic">Basic indicator resolved. Expanding JSON view for details.</p>
-                                    )}
-                                 </div>
-                              </Card>
-                           ))
-                        ) : (
-                          <div className="p-8 text-center text-slate-500 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl">
-                            No actionable threat indicators were extracted from the provided media.
-                          </div>
-                        )}
+                        <AnalysisResults results={result.analysis_results || []} />
                       </div>
 
+                      {/* Display Extra OCR Entities (Simple Lists) */}
+                      {(() => {
+                         const extras = [
+                            { k: 'pan_numbers', l: 'PAN Cards', i: <FileText className="w-3 h-3 text-blue-500"/> },
+                            { k: 'aadhaar_numbers', l: 'Aadhaar Cards', i: <FileText className="w-3 h-3 text-orange-500"/> },
+                            { k: 'vehicle_numbers', l: 'Vehicle Numbers', i: <CheckCircle2 className="w-3 h-3 text-slate-500"/> },
+                            { k: 'card_numbers', l: 'Debit/Credit Cards', i: <Activity className="w-3 h-3 text-purple-500"/> },
+                            { k: 'ifsc_codes', l: 'IFSC Codes', i: <Server className="w-3 h-3 text-indigo-500"/> }
+                         ];
+                         
+                         const hasExtras = extras.some(e => result.extracted_indicators?.[e.k]?.length > 0);
+                         
+                         if (hasExtras) {
+                           return (
+                             <div className="space-y-4">
+                               <h4 className="text-sm font-bold flex items-center gap-2 text-slate-700 dark:text-slate-300 ml-1">
+                                 <FileText className="w-4 h-4 text-blue-500" /> Extracted Documents
+                               </h4>
+                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                 {extras.map(e => {
+                                    const items = result.extracted_indicators?.[e.k] || [];
+                                    if(items.length === 0) return null;
+                                    return (
+                                       <Card key={e.k} className="p-4 bg-slate-50 dark:bg-slate-900/20 border-slate-200 dark:border-slate-800">
+                                          <div className="flex items-center gap-2 mb-3">
+                                             {e.i}
+                                             <span className="text-xs font-bold uppercase text-slate-500">{e.l}</span>
+                                             <span className="ml-auto bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] px-2 py-0.5 rounded-full font-bold">{items.length}</span>
+                                          </div>
+                                          <div className="space-y-2">
+                                             {items.map((val: string, i: number) => (
+                                                <div key={i} className="font-mono text-sm font-medium bg-white dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700 select-all">
+                                                   {val}
+                                                </div>
+                                             ))}
+                                          </div>
+                                       </Card>
+                                    )
+                                 })}
+                               </div>
+                             </div>
+                           );
+                         }
+                         return null;
+                      })()}
+  
                       <Card className="p-4 bg-slate-900 dark:bg-black rounded-xl overflow-hidden mt-4">
                         <div className="flex items-center justify-between mb-2">
                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Raw Subprocess Result</span>

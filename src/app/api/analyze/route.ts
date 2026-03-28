@@ -39,43 +39,10 @@ export async function POST(req: Request) {
         
         try {
           const result = JSON.parse(stdout);
-
-          // Transform result for frontend if in automation mode
-          if (result.mode === 'automation' && result.extracted_indicators) {
-             const analysis_results: any[] = [];
-             
-             // Iterate through all extracted indicators keys and create analysis objects
-             const indicators = result.extracted_indicators;
-             
-             // Define keys we want to map to analysis_results
-             const keysToMap = [
-                'phones', 'urls', 'emails', 'upi_ids', 'telegram_ids', 
-                'instagram_ids', 'transaction_ids', 'bank_accounts', 
-                'crypto_wallets', 'ip_addresses', 'pan_numbers', 
-                'aadhaar_numbers', 'vehicle_numbers', 'card_numbers', 
-                'otp_codes', 'imei_numbers', 'mac_addresses'
-             ];
-
-             keysToMap.forEach(key => {
-                if (Array.isArray(indicators[key])) {
-                   indicators[key].forEach((indicator: any) => {
-                      if (indicator && indicator !== "NA") {
-                          analysis_results.push({
-                             indicator: typeof indicator === 'string' ? indicator : JSON.stringify(indicator),
-                             type: key, 
-                             analysis: {
-                                risk_assessment: {
-                                   risk_score: 15, // Default low risk score
-                                   risk_level: "Low"
-                                }
-                             }
-                          });
-                      }
-                   });
-                }
-             });
-             
-             result.analysis_results = analysis_results;
+          
+          if (result.error) {
+             console.error("Python Logic Error:", result.error);
+             return NextResponse.json(result, { status: 500 });
           }
 
           return NextResponse.json(result);
